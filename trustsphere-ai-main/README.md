@@ -1768,15 +1768,6 @@ The final application must be modular so that individual AI models can be replac
 
 Most importantly, Qwen3-8B must be the central LLM for evidence-grounded reasoning and final claim verification, while RAG supplies trusted evidence to Qwen3-8B.
 
-This project was built with [Lovable](https://lovable.dev).
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/59fbcec1-42b1-470a-8ef2-86f8a3dcac81).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
 
 ## Development
 
