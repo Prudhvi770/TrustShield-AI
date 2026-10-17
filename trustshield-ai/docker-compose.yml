@@ -1,0 +1,13 @@
+version: '3.8'
+services:
+  trustshield-app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DEMO_MODE=true
+      - DATABASE_URL=sqlite:///./trustshield.db
+    volumes:
+      - trustshield_data:/app/backend
+volumes:
+  trustshield_data:

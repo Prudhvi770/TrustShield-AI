@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: trustshield-ai
+    env: docker
+    dockerfilePath: Dockerfile
+    plan: free
+    region: oregon
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: DEMO_MODE
+        value: "true"
+      - key: DATABASE_URL
+        value: "sqlite:///./trustshield.db"

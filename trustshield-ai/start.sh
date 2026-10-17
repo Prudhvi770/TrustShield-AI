@@ -1,0 +1,7 @@
+#!/bin/bash
+echo "==================================================="
+echo "  TrustShield AI - Production Startup (Linux/macOS)"
+echo "==================================================="
+export PYTHONPATH="${PYTHONPATH}:$(pwd)/backend"
+cd backend
+python3 -m uvicorn main:app --host 0.0.0.0 --port "${PORT:-8000}"
