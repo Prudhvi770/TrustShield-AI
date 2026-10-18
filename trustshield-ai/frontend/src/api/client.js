@@ -1,18 +1,24 @@
 // Automatically detect API base:
-// When served on port 8000 (FastAPI), use relative '/api'
-// When running in Vite dev server (3000, 5173), try '/api' proxy, with automatic fallback to http://127.0.0.1:8000/api
+// 1. If VITE_API_BASE_URL is set in environment (Vercel / production), use that.
+// 2. Otherwise default to '/api' (handled by FastAPI or Vercel rewrites).
+// 3. If running locally on a dev port (e.g. 3000, 5173), automatically fall back to http://127.0.0.1:8000/api.
 const getApiBase = () => {
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL) {
+    const custom = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '');
+    return custom.endsWith('/api') ? custom : `${custom}/api`;
+  }
   return '/api';
 };
 
 async function apiFetch(endpoint, options = {}) {
-  const url = `${getApiBase()}${endpoint}`;
+  const base = getApiBase();
+  const url = `${base}${endpoint}`;
   try {
     const res = await fetch(url, options);
     return res;
   } catch (err) {
     // If running on Vite dev server (e.g., 3000 or 5173) and local proxy failed, retry directly to 8000
-    if (typeof window !== 'undefined' && window.location.port !== '8000') {
+    if (typeof window !== 'undefined' && window.location.port !== '8000' && !base.startsWith('http')) {
       try {
         const directUrl = `http://127.0.0.1:8000/api${endpoint}`;
         const directRes = await fetch(directUrl, options);
@@ -21,7 +27,7 @@ async function apiFetch(endpoint, options = {}) {
         // Fall through
       }
     }
-    throw new Error('Cannot connect to backend server. Please make sure the backend is running at http://127.0.0.1:8000 (Run start.bat in the project folder).');
+    throw new Error('Cannot connect to backend server. Please make sure the backend is running.');
   }
 }
 
@@ -87,15 +93,11 @@ export async function uploadCircularDocument(formData) {
 }
 
 export function getReportDownloadUrl(analysisId) {
-  if (typeof window !== 'undefined' && window.location.port !== '8000' && window.location.port !== '') {
-    return `http://127.0.0.1:8000/api/report/${analysisId}`;
-  }
-  return `/api/report/${analysisId}`;
+  const base = getApiBase();
+  return `${base}/report/${analysisId}`;
 }
 
 export function getCodeZipUrl() {
-  if (typeof window !== 'undefined' && window.location.port !== '8000' && window.location.port !== '') {
-    return 'http://127.0.0.1:8000/api/download-code';
-  }
-  return '/api/download-code';
+  const base = getApiBase();
+  return `${base}/download-code`;
 }
