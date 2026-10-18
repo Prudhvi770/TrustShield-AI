@@ -1,11 +1,29 @@
 import io
 import datetime
-from reportlab.lib.pagesizes import letter
-from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+try:
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    HAS_REPORTLAB = True
+except Exception:
+    HAS_REPORTLAB = False
 
 def generate_verification_pdf(analysis_data: dict) -> bytes:
+    if not HAS_REPORTLAB:
+        dossier_id = analysis_data.get('analysis_id', 'TS-DOSSIER')
+        verdict = analysis_data.get('decision', {}).get('final_verdict', 'UNVERIFIABLE')
+        conf = analysis_data.get('decision', {}).get('confidence', 0)
+        content = f"TRUSTSHIELD AI - OFFICIAL DOSSIER\nID: {dossier_id}\nVerdict: {verdict}\nConfidence: {conf}%\nGenerated on {datetime.datetime.utcnow().isoformat()}"
+        pdf_bytes = (
+            b"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n"
+            b"2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n"
+            b"3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<<>>/Contents 4 0 R>>endobj\n"
+            b"4 0 obj<</Length " + str(len(content) + 60).encode('ascii') + b">>stream\nBT /F1 12 Tf 50 720 Td (" + content.encode('ascii', errors='replace') + b") Tj ET\nendstream\nendobj\n"
+            b"xref\n0 5\n0000000000 65535 f\n0000000010 00000 n\n0000000060 00000 n\n0000000117 00000 n\n0000000210 00000 n\n"
+            b"trailer<</Size 5/Root 1 0 R>>\nstartxref\n320\n%%EOF"
+        )
+        return pdf_bytes
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer,

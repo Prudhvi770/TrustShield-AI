@@ -194,6 +194,7 @@ def api_decision(req: VerificationRequest):
 
 # ----------------- MASTER END-TO-END VERIFICATION -----------------
 @app.post("/api/analyze", response_model=VerificationResponse)
+@app.post("/analyze", response_model=VerificationResponse)
 def analyze_content(
     req: VerificationRequest,
     current_user: Optional[User] = Depends(get_current_user),
@@ -502,7 +503,13 @@ def get_analytics_dashboard(db: Session = Depends(get_db)):
 
 
 # ----------------- DATASET & CODE DOWNLOAD ENDPOINTS -----------------
+@app.get("/api/health")
+@app.get("/health")
+def api_health():
+    return {"status": "ok", "service": "TrustShield AI"}
+
 @app.get("/api/dataset")
+@app.get("/dataset")
 def get_dataset():
     dataset_path = os.path.join(os.path.dirname(__file__), "data", "claims_dataset.json")
     if os.path.exists(dataset_path):
