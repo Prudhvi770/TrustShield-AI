@@ -36,3 +36,10 @@ Thumbs.db
 
 # Vercel
 .vercel
+
+# Datasets
+dataset/
+**/data/dataset/
+*.parquet
+*.crdownload
+

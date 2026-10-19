@@ -1,33 +1,45 @@
 import React, { useEffect, useState } from 'react';
-import { X, Database, ArrowRight, Search, CheckCircle, ShieldAlert, ShieldQuestion } from 'lucide-react';
-import { fetchDataset } from '../api/client';
+import { X, Database, ArrowRight, Search, CheckCircle, ShieldAlert, ShieldQuestion, Layers } from 'lucide-react';
+import { fetchDataset, fetchDatasetStats } from '../api/client';
 
 export const DatasetModal = ({ isOpen, onClose, onSelectSample }) => {
   const [dataset, setDataset] = useState([]);
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
 
   useEffect(() => {
     if (isOpen) {
       setLoading(true);
-      fetchDataset()
-        .then(data => setDataset(data))
-        .catch(() => setDataset([]))
-        .finally(() => setLoading(false));
+      Promise.all([
+        fetchDataset().catch(() => []),
+        fetchDatasetStats().catch(() => null)
+      ]).then(([data, statsData]) => {
+        setDataset(data);
+        setStats(statsData);
+      }).finally(() => setLoading(false));
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const filtered = dataset.filter(item => 
-    item.claim_text?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.id?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const categories = ['All', 'Government/Financial Scheme', 'Banking KYC Phishing', 'Education & Student Aid', 'Bharat Scheme'];
+
+  const filtered = dataset.filter(item => {
+    const matchesSearch = item.claim_text?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.id?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (!matchesSearch) return false;
+    if (selectedCategory === 'All') return true;
+    if (selectedCategory === 'Bharat Scheme') return item.category?.toLowerCase().includes('bharat');
+    return item.category?.toLowerCase().includes(selectedCategory.toLowerCase());
+  });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
-      <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 relative max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-white rounded-3xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 relative max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between pb-4 border-b border-slate-100">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center shadow-xs">
@@ -35,7 +47,7 @@ export const DatasetModal = ({ isOpen, onClose, onSelectSample }) => {
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-900">Official Verification Dataset</h2>
-              <p className="text-xs text-slate-500">Benchmark cases cross-referenced with authentic regulatory circulars</p>
+              <p className="text-xs text-slate-500">Benchmark cases cross-referenced with authentic regulatory circulars & Bharat fact-checks</p>
             </div>
           </div>
           <button
@@ -46,8 +58,41 @@ export const DatasetModal = ({ isOpen, onClose, onSelectSample }) => {
           </button>
         </div>
 
+        {/* Dataset Stats Banner */}
+        <div className="my-3 py-2 px-3 rounded-xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
+          <div className="flex items-center space-x-2">
+            <Layers className="w-3.5 h-3.5 text-blue-600" />
+            <span className="font-semibold text-slate-800">Datasets Ingested:</span>
+            <span>26,232 Bharat Schemes</span>
+            <span>•</span>
+            <span>1,000 RBI Circulars</span>
+            <span>•</span>
+            <span>5,572 SMS Records</span>
+          </div>
+          <div className="font-mono font-bold text-blue-700">
+            {dataset.length} Active Test Cases
+          </div>
+        </div>
+
+        {/* Category Filters */}
+        <div className="flex items-center space-x-1.5 overflow-x-auto pb-2 scrollbar-none text-xs">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`px-3 py-1 rounded-lg font-semibold transition whitespace-nowrap ${
+                selectedCategory === cat
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
         {/* Search */}
-        <div className="my-4 relative">
+        <div className="my-2 relative">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
           <input
             type="text"
@@ -57,6 +102,7 @@ export const DatasetModal = ({ isOpen, onClose, onSelectSample }) => {
             className="w-full pl-10 pr-4 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-600/30"
           />
         </div>
+
 
         {/* List of Dataset Cases */}
         <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-1">

@@ -55,21 +55,71 @@ SEED_OFFICIAL_DOCUMENTS = [
 class KnowledgeBaseVectorStore:
     def __init__(self):
         self.documents = list(SEED_OFFICIAL_DOCUMENTS)
+        self._load_rbi_dataset()
         self.bm25_engine = BM25SearchEngine(self.documents)
         self.semantic_engine = SemanticEmbeddingEngine()
         
+    def _load_rbi_dataset(self):
+        """Loads official RBI Circulars from RBI_Schemes.parquet dataset if available."""
+        try:
+            candidates = [
+                os.path.join(os.path.dirname(__file__), "..", "data", "dataset", "RBI", "RBI_Schemes.parquet"),
+                os.path.join(os.path.dirname(__file__), "..", "..", "dataset", "RBI", "RBI_Schemes.parquet"),
+                r"E:\study\sem5\NLP PROJECT\Dataset\RBI\RBI_Schemes.parquet"
+            ]
+            parquet_path = next((p for p in candidates if os.path.exists(p)), None)
+            if parquet_path:
+                import pandas as pd
+                import re
+                df = pd.read_parquet(parquet_path)
+                loaded_count = 0
+                for idx, r in df.iterrows():
+                    chunk_text = str(r.get("chunks_text", "")).strip()
+                    if not chunk_text or len(chunk_text) < 40:
+                        continue
+                    clean_chunk = re.sub(r'!\[.*?\]\(.*?\)', '', chunk_text).strip()
+                    doc_id = str(r.get("document", f"RBI-CIR-{idx:04d}"))
+                    reg_area = str(r.get("regulation_area", "Banking Regulation"))
+                    topics = str(r.get("key_topics", "Regulatory Circular"))
+                    issued = str(r.get("issued_on", "2023-2024"))
+                    
+                    self.documents.append({
+                        "document_id": doc_id,
+                        "title": f"RBI Notification: {reg_area} - {topics[:60]}",
+                        "organization": "Reserve Bank of India (RBI)",
+                        "date": issued,
+                        "source_url": "https://rbi.org.in",
+                        "page_number": 1,
+                        "text": clean_chunk[:1200]
+                    })
+                    loaded_count += 1
+                    if loaded_count >= 120:  # Curate top 120 authentic circulars for instant performance
+                        break
+        except Exception as e:
+            print(f"Notice: Could not load RBI Parquet dataset: {e}")
+
     def add_document(self, doc_dict: Dict[str, Any]):
         self.documents.append(doc_dict)
         self.bm25_engine = BM25SearchEngine(self.documents)
         
     def hybrid_search(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
-        bm25_results = self.bm25_engine.search(query, top_k=len(self.documents))
-        bm25_dict = {d["document_id"]: d.get("bm25_score", 0.0) for d in bm25_results}
+        # Two-stage retrieval: BM25 candidate filtering + Dense Semantic reranking
+        candidate_count = min(35, len(self.documents))
+        bm25_candidates = self.bm25_engine.search(query, top_k=candidate_count)
+        cand_map = {d["document_id"]: d.get("bm25_score", 0.0) for d in bm25_candidates}
         
+        # If query matches seed/caution docs, ensure they are also included in candidate pool
+        for seed_doc in self.documents[:len(SEED_OFFICIAL_DOCUMENTS)]:
+            if seed_doc["document_id"] not in cand_map:
+                cand_map[seed_doc["document_id"]] = 0.0
+                
         scored_chunks = []
         for doc in self.documents:
             doc_id = doc["document_id"]
-            bm25_s = bm25_dict.get(doc_id, 0.0)
+            if doc_id not in cand_map:
+                continue
+                
+            bm25_s = cand_map.get(doc_id, 0.0)
             sem_s = self.semantic_engine.compute_similarity(query, doc["text"] + " " + doc["title"])
             
             # Hybrid combined score (0.4 * BM25 + 0.6 * Semantic)
@@ -87,3 +137,4 @@ class KnowledgeBaseVectorStore:
 
 # Global singleton
 kb_store = KnowledgeBaseVectorStore()
+

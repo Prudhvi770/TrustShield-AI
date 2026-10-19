@@ -57,6 +57,13 @@ export async function fetchDataset() {
   return res.json();
 }
 
+export async function fetchDatasetStats() {
+  const res = await apiFetch('/dataset/stats');
+  if (!res.ok) throw new Error('Failed to fetch dataset stats');
+  return res.json();
+}
+
+
 export async function fetchHistory() {
   const res = await apiFetch('/history');
   if (!res.ok) throw new Error('Failed to fetch history');
