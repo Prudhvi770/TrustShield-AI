@@ -49,8 +49,36 @@ SEED_OFFICIAL_DOCUMENTS = [
         "source_url": "https://scholarships.gov.in/guidelines",
         "page_number": 3,
         "text": "Scholarship disbursements under Central Sector Scheme of Scholarship for College and University Students require formal institutional verification by the respective college nodal officer. Disbursal occurs directly into the Aadhaar-seeded bank account of the verified student. No private third-party domain or urgent WhatsApp message is authorized to collect fees or documents for scholarship enrollment."
+    },
+    {
+        "document_id": "MOP-CYBER-2024-12",
+        "title": "Ministry of Power Advisory: Warning on Fake Electricity Bill Disconnection Notices and Screen-Sharing Scams",
+        "organization": "Ministry of Power (Govt of India)",
+        "date": "04 May 2024",
+        "source_url": "https://powermin.gov.in/en/content/advisory-fraud-alerts",
+        "page_number": 1,
+        "text": "The Ministry of Power and state electricity boards (DISCOMs) notify citizens that electricity power disconnection notices are never served via sudden SMS messages demanding immediate telephone calls to personal 10-digit mobile numbers or third-party links. Electricity authorities follow statutory notice protocols. Any message threatening power cut tonight must be treated as fraudulent social engineering."
+    },
+    {
+        "document_id": "CBDT-ALERT-2024-05",
+        "title": "CBDT Cautionary Notice Against Fraudulent Income Tax Refund Messages Seeking Banking PINs or CVV",
+        "organization": "Central Board of Direct Taxes (CBDT)",
+        "date": "12 June 2024",
+        "source_url": "https://incometax.gov.in/iec/foportal/alerts",
+        "page_number": 1,
+        "text": "The Income Tax Department clarifies that approved tax refunds are transferred automatically into pre-validated, Aadhaar-linked taxpayer bank accounts. The Department never requests debit card numbers, PINs, CVV codes, or net banking passwords via unsolicited SMS, email, or third-party web portals to process refunds."
+    },
+    {
+        "document_id": "GOI-AGRI-2024-17",
+        "title": "PM-Kisan Samman Nidhi Operational Guidelines and Direct Benefit Transfer Authentication",
+        "organization": "Ministry of Agriculture and Farmers Welfare (Govt of India)",
+        "date": "01 March 2024",
+        "source_url": "https://pmkisan.gov.in/guidelines",
+        "page_number": 1,
+        "text": "The Central Government disburses financial benefit of ₹6,000 per year in three equal 4-monthly installments under PM-Kisan Samman Nidhi directly into the bank accounts of all landholding farmers. Beneficiaries must complete mandatory e-KYC authentication on the official portal pmkisan.gov.in or through face authentication mobile app."
     }
 ]
+
 
 class KnowledgeBaseVectorStore:
     def __init__(self):
@@ -73,12 +101,24 @@ class KnowledgeBaseVectorStore:
                 import re
                 df = pd.read_parquet(parquet_path)
                 loaded_count = 0
+                seen_texts = set()
+                seen_ids = {d["document_id"] for d in self.documents}
+                
                 for idx, r in df.iterrows():
                     chunk_text = str(r.get("chunks_text", "")).strip()
-                    if not chunk_text or len(chunk_text) < 40:
+                    if not chunk_text or len(chunk_text) < 50:
                         continue
                     clean_chunk = re.sub(r'!\[.*?\]\(.*?\)', '', chunk_text).strip()
+                    first_line = clean_chunk[:100]
+                    if first_line in seen_texts:
+                        continue
+                    seen_texts.add(first_line)
+                    
                     doc_id = str(r.get("document", f"RBI-CIR-{idx:04d}"))
+                    if doc_id in seen_ids:
+                        doc_id = f"{doc_id}_{idx}"
+                    seen_ids.add(doc_id)
+                    
                     reg_area = str(r.get("regulation_area", "Banking Regulation"))
                     topics = str(r.get("key_topics", "Regulatory Circular"))
                     issued = str(r.get("issued_on", "2023-2024"))
@@ -93,9 +133,10 @@ class KnowledgeBaseVectorStore:
                         "text": clean_chunk[:1200]
                     })
                     loaded_count += 1
-                    if loaded_count >= 120:  # Curate top 120 authentic circulars for instant performance
+                    if loaded_count >= 100:  # Curate top 100 distinct authentic circulars
                         break
         except Exception as e:
+
             print(f"Notice: Could not load RBI Parquet dataset: {e}")
 
     def add_document(self, doc_dict: Dict[str, Any]):
@@ -122,8 +163,8 @@ class KnowledgeBaseVectorStore:
             bm25_s = cand_map.get(doc_id, 0.0)
             sem_s = self.semantic_engine.compute_similarity(query, doc["text"] + " " + doc["title"])
             
-            # Hybrid combined score (0.4 * BM25 + 0.6 * Semantic)
-            combined = round((0.4 * bm25_s) + (0.6 * sem_s), 4)
+            # Hybrid combined score (0.55 * BM25 + 0.45 * Semantic)
+            combined = round((0.55 * bm25_s) + (0.45 * sem_s), 4)
             
             chunk = dict(doc)
             chunk["chunk_id"] = f"{doc_id}_c1"
@@ -134,6 +175,7 @@ class KnowledgeBaseVectorStore:
             
         scored_chunks.sort(key=lambda x: x["combined_score"], reverse=True)
         return scored_chunks[:top_k]
+
 
 # Global singleton
 kb_store = KnowledgeBaseVectorStore()

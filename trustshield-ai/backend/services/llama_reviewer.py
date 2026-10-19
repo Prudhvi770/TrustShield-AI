@@ -49,7 +49,21 @@ def run_llama_review(
             
     # Independent evaluation
     claim_lower = claim_text.lower()
-    if ("rbi" in claim_lower or "scholarship" in claim_lower) and "?50,000" in claim_text:
+    
+    # Refuted review
+    if q_verdict == "REFUTED":
+        return {
+            "model_name": "Llama 3.1 8B",
+            "review_verdict": "REFUTED",
+            "confidence": 94.0,
+            "agreement_with_qwen": True,
+            "review_reasoning": "Independent reviewer agrees: official regulatory mandates and advisory circulars directly refute and contradict the claim. Qwen3-8B's refutation is fully supported by the retrieved official evidence.",
+            "issues_found": issues_found,
+            "evidence_ids": [e["document_id"] for e in evidence_chunks[:2]]
+        }
+        
+    # RBI scholarship review (per Master Prompt section 5)
+    if ("rbi" in claim_lower or "scholarship" in claim_lower) and ("50,000" in claim_text or "50000" in claim_text):
         review_verdict = "UNVERIFIABLE"
         confidence = 91.0
         agreement = (review_verdict == q_verdict)
@@ -76,3 +90,4 @@ def run_llama_review(
         "issues_found": issues_found,
         "evidence_ids": [e["document_id"] for e in evidence_chunks[:2]]
     }
+

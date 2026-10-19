@@ -211,7 +211,8 @@ def analyze_content(
     
     # 3. Claim Extraction
     claims = extract_claims(prep["clean_text"], nlp_res["entities"], nlp_res["svo_triples"])
-    primary_claim_text = claims[0]["claim_text"] if claims else req.text
+    primary_claim_text = " ".join([c["claim_text"] for c in claims]) if claims else req.text
+
     
     # 4. Risk Detection Models
     fake = detect_fake_news(req.text)
@@ -221,10 +222,13 @@ def analyze_content(
     url_res = analyze_url(req.url or req.text)
     
     # 5. Hybrid Retrieval & Official Knowledge Base
-    evidence = retrieve_rag_evidence(primary_claim_text, top_k=settings.TOP_K_EVIDENCE)
+    search_context = f"{primary_claim_text} {req.text}"
+    evidence = retrieve_rag_evidence(search_context, top_k=max(6, settings.TOP_K_EVIDENCE))
+
     
     # 6. Evidence Consistency Check
-    consistency = check_evidence_consistency(primary_claim_text, evidence)
+    consistency = check_evidence_consistency(req.text, evidence)
+
     
     # 7. Risk Aggregation
     overall_risk_data = aggregate_risk_scores(

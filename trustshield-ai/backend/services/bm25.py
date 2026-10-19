@@ -5,11 +5,12 @@ from rank_bm25 import BM25Okapi
 class BM25SearchEngine:
     def __init__(self, corpus_chunks: List[Dict[str, Any]]):
         self.chunks = corpus_chunks
-        self.tokenized_corpus = [self._tokenize(c["text"]) for c in corpus_chunks]
+        self.tokenized_corpus = [self._tokenize(c.get("title", "") + " " + c.get("text", "")) for c in corpus_chunks]
         if self.tokenized_corpus:
             self.bm25 = BM25Okapi(self.tokenized_corpus)
         else:
             self.bm25 = None
+
             
     def _tokenize(self, text: str) -> List[str]:
         return [w.lower() for w in re.findall(r'[a-zA-Z0-9?$]+', text) if len(w) > 1]

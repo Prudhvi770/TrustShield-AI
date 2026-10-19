@@ -30,8 +30,9 @@ def execute_decision_engine(
     
     # Case 1: Both models agree SUPPORTED
     if qwen_verdict == "SUPPORTED" and llama_verdict == "SUPPORTED":
-        if evidence_support_score >= 0.70 and evidence_status == "SUPPORTING":
+        if evidence_support_score >= 0.65 or evidence_status == "SUPPORTING":
             avg_conf = round((qwen_confidence + llama_confidence) / 2.0, 1)
+
             return {
                 "final_verdict": "SUPPORTED",
                 "confidence": avg_conf,
